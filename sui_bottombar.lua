@@ -1222,11 +1222,11 @@ function M.doWifiToggle(plugin)
     if not ok_state then wifi_on = false end
     if wifi_on then
         Config.wifi_optimistic = false
-        pcall(function() NetworkMgr:turnOffWifi() end)
+        pcall(function() NetworkMgr:disableWifi() end)
         UIManager:show(InfoMessage():new{ text = _("Wi-Fi off"), timeout = 1 })
     else
         Config.wifi_optimistic = true
-        local ok_on, err = pcall(function() NetworkMgr:turnOnWifi() end)
+        local ok_on, err = pcall(function() NetworkMgr:enableWifi() end)
         if not ok_on then
             logger.warn("simpleui: Wi-Fi turn-on error:", tostring(err))
             Config.wifi_optimistic = nil
