@@ -49,7 +49,15 @@ local _CLR_BAR_FG = Blitbuffer.gray(0.75)
 -- Vertical gaps between elements (base values at 100% scale; scaled in build()).
 local _BASE_COVER_GAP  = Screen:scaleBySize(12)  -- between cover and text column
 local _BASE_TITLE_GAP  = Screen:scaleBySize(4)   -- before title
-local _BASE_AUTHOR_GAP = Screen:scaleBySize(3)   -- before author
+local _BASE_AUTHOR_GAP = Screen:scaleBySize(8)   -- before author
+-- Vertical gaps around the progress bar.
+-- The bar (LineWidget) has no internal padding — it starts and ends at exact pixels.
+-- TextWidget includes ascender/descender space inside its reported height, which
+-- the eye reads as part of the gap. To look balanced:
+--   before the bar: slightly smaller because the author text's descender space
+--                   adds ~2px of visual gap "for free" from inside the widget.
+--   after the bar:  larger to compensate for the ascender space of the next text
+--                   being consumed from the gap, making it look narrower.
 local _BASE_BAR_GAP_BEFORE = Screen:scaleBySize(6)   -- gap above the progress bar
 local _BASE_BAR_GAP_AFTER  = Screen:scaleBySize(10)  -- gap below the progress bar
 local _BASE_PCT_GAP    = Screen:scaleBySize(3)   -- before percent / stats rows

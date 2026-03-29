@@ -284,6 +284,15 @@ function SimpleUIPlugin:onCloseDocument()
         -- Homescreen not visible yet — flag it for rebuild on next open.
         HS._stats_need_refresh = true
     end
+    -- Restart the topbar clock chain. While the reader was open, shouldRunTimer()
+    -- returned false (RUI.instance present) so the chain stopped naturally.
+    -- Without this, the topbar is frozen until the next hardware event (frontlight,
+    -- charge) — wifi state changes that happened during reading would not be
+    -- reflected for up to 60 s. scheduleRefresh guards against suspend internally
+    -- via shouldRunTimer, so this is safe to call unconditionally here.
+    if G_reader_settings:nilOrTrue("navbar_topbar_enabled") then
+        Topbar.scheduleRefresh(self, 0)
+    end
 end
 
 function SimpleUIPlugin:onFrontlightStateChanged()
