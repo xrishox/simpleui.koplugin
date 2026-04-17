@@ -86,7 +86,7 @@ M.ICON = {
     custom         = _P .. "custom.svg",
     custom_dir     = _P .. "custom",             -- directory, no trailing slash
     plugin         = _P .. "plugin.svg",
-    storyteller    = _P .. "plugin.svg",
+    storyteller    = _P .. "storyteller.svg",
     author         = _P .. "author.svg",
     series         = _P .. "series.svg",
 
