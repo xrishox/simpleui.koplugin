@@ -1366,6 +1366,14 @@ function M.navigate(plugin, action_id, fm_self, tabs, force)
         if fm.collections then fm.collections:onShowColl()
         else showUnavailable(_("Favorites not available.")) end
 
+    elseif action_id == "storyteller" then
+        local ok_st, ST = pcall(require, "sui_storyteller")
+        if ok_st and ST and type(ST.show) == "function" then
+            ST.show()
+        else
+            showUnavailable(_("Storyteller page not available."))
+        end
+
     elseif action_id == "bookmark_browser" then
         -- Show the source-selection ButtonDialog floating on top of whatever
         -- is currently visible. Delegates to the shared helper.

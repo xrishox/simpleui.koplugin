@@ -86,6 +86,7 @@ M.ICON = {
     custom         = _P .. "custom.svg",
     custom_dir     = _P .. "custom",             -- directory, no trailing slash
     plugin         = _P .. "plugin.svg",
+    storyteller    = _P .. "plugin.svg",
     author         = _P .. "author.svg",
     series         = _P .. "series.svg",
 
@@ -136,6 +137,7 @@ M.ALL_ACTIONS = {
     { id = "history",          label = _("History"),          icon = M.ICON.history     },
     { id = "continue",         label = _("Continue"),         icon = M.ICON.continue_   },
     { id = "favorites",        label = _("Favorites"),        icon = M.ICON.ko_star     },
+    { id = "storyteller",      label = _("Storyteller"),      icon = M.ICON.storyteller },
     { id = "bookmark_browser", label = _("Bookmarks"),        icon = M.ICON.ko_bookmark },
     { id = "wifi_toggle",      label = _("Wi-Fi"),            icon = M.ICON.ko_wifi_on  },
     { id = "frontlight",       label = _("Brightness"),       icon = M.ICON.frontlight  },
