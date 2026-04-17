@@ -1,0 +1,524 @@
+local DataStorage = require("datastorage")
+local Device = require("device")
+local UIManager = require("ui/uimanager")
+local ButtonDialog = require("ui/widget/buttondialog")
+local ConfirmBox = require("ui/widget/confirmbox")
+local InfoMessage = require("ui/widget/infomessage")
+local Menu = require("ui/widget/menu")
+local NetworkMgr = require("ui/network/manager")
+local T = require("ffi/util").template
+local _ = require("gettext")
+local logger = require("logger")
+
+local UI = require("sui_core")
+
+local Screen = Device.screen
+local lfs = require("libs/libkoreader-lfs")
+
+local M = {}
+M._instance = nil
+
+local function _showInfo(text, timeout)
+    UIManager:show(InfoMessage:new{ text = text, timeout = timeout or 3 })
+end
+
+local function _loadST()
+    local st = {}
+    local mods = {
+        api = "st_api",
+        settings = "st_settings",
+        browser = "st_browser",
+        downloader = "st_downloader",
+    }
+    for key, name in pairs(mods) do
+        local ok, mod = pcall(require, name)
+        if not ok then
+            logger.warn("simpleui storyteller: missing module", name, "-", tostring(mod))
+            return nil
+        end
+        st[key] = mod
+    end
+    return st
+end
+
+local function _liveSTPlugin()
+    local FM = package.loaded["apps/filemanager/filemanager"]
+    local fm = FM and FM.instance
+    if not fm then return nil end
+    if fm.storyteller then return fm.storyteller end
+    if type(fm.plugins) == "table" then
+        for __, p in ipairs(fm.plugins) do
+            if p and p.name == "storyteller" then
+                return p
+            end
+        end
+    end
+    return nil
+end
+
+local function _copyList(list)
+    local out = {}
+    for __, item in ipairs(list or {}) do
+        table.insert(out, item)
+    end
+    return out
+end
+
+local function _normalizeName(value, fallback)
+    if value and value ~= "" then
+        return value
+    end
+    return fallback
+end
+
+local function _buildAuthors(book)
+    local names = {}
+    for __, author in ipairs(book.authors or {}) do
+        if author.name then
+            table.insert(names, author.name)
+        end
+    end
+    if #names == 0 then
+        return nil
+    end
+    return table.concat(names, ", ")
+end
+
+local function _countLabel(count)
+    if count == 1 then
+        return _("1 book")
+    end
+    return T(_("%1 books"), count or 0)
+end
+
+local function _isDownloaded(filepath)
+    return lfs.attributes(filepath, "mode") == "file"
+end
+
+local function _getBookPath(st, settings, book)
+    local format_name = st.downloader.getAvailableFormat(
+        book,
+        settings:getPreferredFormat()
+    ) or settings:getPreferredFormat()
+    local dir = st.downloader.getDownloadDir(settings)
+    local filename = st.downloader.buildFilename(book, format_name)
+    return dir .. "/" .. filename
+end
+
+local function _getDownloadedBadge(st, settings, book)
+    if _isDownloaded(_getBookPath(st, settings, book)) then
+        return " [" .. _("Downloaded") .. "]"
+    end
+    return ""
+end
+
+local function _sortByTitle(items, key_name)
+    table.sort(items, function(a, b)
+        local left = key_name and a[key_name] or a
+        local right = key_name and b[key_name] or b
+        local left_name = (left and left.name) or (left and left.title) or ""
+        local right_name = (right and right.name) or (right and right.title) or ""
+        return left_name:lower() < right_name:lower()
+    end)
+    return items
+end
+
+function M.show()
+    local st = _loadST()
+    if not st then
+        _showInfo(_("Storyteller plugin is not installed or enabled."))
+        return
+    end
+
+    local st_plugin = _liveSTPlugin()
+    local settings = (st_plugin and st_plugin.st_settings) or st.settings:new()
+    local api = (st_plugin and st_plugin.api) or st.api:new(settings)
+
+    if not settings:isLoggedIn() then
+        _showInfo(_("Link your Storyteller account first (Tools -> Storyteller)."))
+        return
+    end
+
+    if M._instance then
+        pcall(function() UIManager:close(M._instance) end)
+        M._instance = nil
+    end
+
+    local state = {
+        books = nil,
+        collections = nil,
+        series = nil,
+        stack = {},
+        loaded = false,
+    }
+
+    local menu
+
+    local function getBooksForCollection(collection_uuid)
+        local filtered = {}
+        for __, book in ipairs(state.books or {}) do
+            for ___, collection in ipairs(book.collections or {}) do
+                if collection.uuid == collection_uuid then
+                    table.insert(filtered, book)
+                    break
+                end
+            end
+        end
+        return filtered
+    end
+
+    local function getBooksForSeries(series_uuid)
+        local filtered = {}
+        for __, book in ipairs(state.books or {}) do
+            for ___, relation in ipairs(book.series or {}) do
+                if relation.uuid == series_uuid then
+                    table.insert(filtered, book)
+                    break
+                end
+            end
+        end
+        return filtered
+    end
+
+    local function getCurrentlyReadingBooks()
+        local filtered = {}
+        for __, book in ipairs(state.books or {}) do
+            if book.status and book.status.name == "Reading" then
+                table.insert(filtered, book)
+            end
+        end
+
+        table.sort(filtered, function(a, b)
+            local ts_a = a.position and a.position.timestamp or 0
+            local ts_b = b.position and b.position.timestamp or 0
+            if ts_a ~= ts_b then
+                return ts_a > ts_b
+            end
+            return (a.title or ""):lower() < (b.title or ""):lower()
+        end)
+
+        return filtered
+    end
+
+    local function getSeriesRelation(book, series_uuid)
+        for __, relation in ipairs(book.series or {}) do
+            if relation.uuid == series_uuid then
+                return relation
+            end
+        end
+        return nil
+    end
+
+    local function sortSeriesBooks(series_uuid, books)
+        table.sort(books, function(a, b)
+            local rel_a = getSeriesRelation(a, series_uuid) or {}
+            local rel_b = getSeriesRelation(b, series_uuid) or {}
+            local pos_a = tonumber(rel_a.position)
+            local pos_b = tonumber(rel_b.position)
+
+            if pos_a ~= nil and pos_b ~= nil and pos_a ~= pos_b then
+                return pos_a < pos_b
+            end
+            if pos_a ~= nil and pos_b == nil then
+                return true
+            end
+            if pos_a == nil and pos_b ~= nil then
+                return false
+            end
+            return (a.title or ""):lower() < (b.title or ""):lower()
+        end)
+        return books
+    end
+
+    local function buildBackItem()
+        return {
+            text = _("Back"),
+            back = true,
+        }
+    end
+
+    local function buildBookItems(books)
+        local items = { buildBackItem() }
+        for __, book in ipairs(books or {}) do
+            table.insert(items, {
+                text = _normalizeName(book.title, _("Untitled")) .. _getDownloadedBadge(st, settings, book),
+                mandatory = _buildAuthors(book),
+                book = book,
+            })
+        end
+        if #(books or {}) == 0 then
+            table.insert(items, {
+                text = _("No downloadable books found."),
+                dim = true,
+            })
+        end
+        return items
+    end
+
+    local function buildCollectionItems()
+        local items = { buildBackItem() }
+        local collections = _copyList(state.collections or {})
+        _sortByTitle(collections)
+        for __, collection in ipairs(collections) do
+            table.insert(items, {
+                text = _normalizeName(collection.name, _("Untitled")),
+                mandatory = _countLabel(#getBooksForCollection(collection.uuid)),
+                collection = collection,
+            })
+        end
+        if #collections == 0 then
+            table.insert(items, { text = _("No collections found."), dim = true })
+        end
+        return items
+    end
+
+    local function buildSeriesItems()
+        local items = { buildBackItem() }
+        local series = _copyList(state.series or {})
+        _sortByTitle(series)
+        for __, entry in ipairs(series) do
+            table.insert(items, {
+                text = _normalizeName(entry.name, _("Untitled")),
+                mandatory = _countLabel(#getBooksForSeries(entry.uuid)),
+                series = entry,
+            })
+        end
+        if #series == 0 then
+            table.insert(items, { text = _("No series found."), dim = true })
+        end
+        return items
+    end
+
+    local function buildRootItems()
+        return {
+            {
+                text = _("Currently Reading"),
+                mandatory = _countLabel(#getCurrentlyReadingBooks()),
+                open_currently_reading = true,
+            },
+            {
+                text = _("All books"),
+                mandatory = _countLabel(#(state.books or {})),
+                open_all_books = true,
+            },
+            {
+                text = _("Collections"),
+                mandatory = _countLabel(#(state.collections or {})),
+                open_collections = true,
+            },
+            {
+                text = _("Series"),
+                mandatory = _countLabel(#(state.series or {})),
+                open_series = true,
+            },
+        }
+    end
+
+    local function renderView()
+        if not menu then return end
+        if not state.loaded then
+            menu:switchItemTable(_("Storyteller"), {
+                { text = _("Loading…"), dim = true },
+            })
+            return
+        end
+
+        local view = state.stack[#state.stack] or { kind = "root" }
+        local title = _("Storyteller")
+        local items = buildRootItems()
+
+        if view.kind == "all_books" then
+            title = _("All books")
+            local books = _copyList(state.books or {})
+            table.sort(books, function(a, b)
+                return (a.title or ""):lower() < (b.title or ""):lower()
+            end)
+            items = buildBookItems(books)
+        elseif view.kind == "currently_reading" then
+            title = _("Currently Reading")
+            items = buildBookItems(getCurrentlyReadingBooks())
+        elseif view.kind == "collections" then
+            title = _("Collections")
+            items = buildCollectionItems()
+        elseif view.kind == "collection_books" then
+            title = _normalizeName(view.collection and view.collection.name, _("Collection"))
+            local books = getBooksForCollection(view.collection.uuid)
+            table.sort(books, function(a, b)
+                return (a.title or ""):lower() < (b.title or ""):lower()
+            end)
+            items = buildBookItems(books)
+        elseif view.kind == "series" then
+            title = _("Series")
+            items = buildSeriesItems()
+        elseif view.kind == "series_books" then
+            title = _normalizeName(view.series and view.series.name, _("Series"))
+            local books = sortSeriesBooks(view.series.uuid, getBooksForSeries(view.series.uuid))
+            items = buildBookItems(books)
+        end
+
+        menu:switchItemTable(title, items)
+    end
+
+    local function pushView(view)
+        table.insert(state.stack, view)
+        renderView()
+    end
+
+    local function goBack()
+        if #state.stack > 1 then
+            table.remove(state.stack)
+        end
+        renderView()
+    end
+
+    local function refreshData()
+        state.loaded = false
+        renderView()
+        NetworkMgr:runWhenOnline(function()
+            local books_ok, books = api:listBooks()
+            local collections_ok, collections = api:listCollections()
+            local series_ok, series = api:listSeries()
+
+            if not books_ok or not collections_ok or not series_ok then
+                logger.warn("simpleui storyteller: failed to load library data")
+                _showInfo(_("Failed to load Storyteller library data."))
+                state.loaded = true
+                state.books = state.books or {}
+                state.collections = state.collections or {}
+                state.series = state.series or {}
+                renderView()
+                return
+            end
+
+            local downloadable = {}
+            for __, book in ipairs(books or {}) do
+                if book.uuid and (book.readaloud or book.ebook) then
+                    table.insert(downloadable, book)
+                end
+            end
+
+            state.books = downloadable
+            state.collections = collections or {}
+            state.series = series or {}
+            state.loaded = true
+            if #state.stack == 0 then
+                state.stack = { { kind = "root" } }
+            end
+            renderView()
+        end)
+    end
+
+    local function refreshCurrentView()
+        renderView()
+        if menu then
+            menu:updateItems()
+        end
+    end
+
+    local function onSelectBook(book)
+        local filepath = _getBookPath(st, settings, book)
+        if _isDownloaded(filepath) then
+            local dialog
+            dialog = ButtonDialog:new{
+                title = _normalizeName(book.title, _("Untitled")),
+                buttons = {
+                    {
+                        {
+                            text = _("Read"),
+                            callback = function()
+                                UIManager:close(dialog)
+                                local ReaderUI = require("apps/reader/readerui")
+                                ReaderUI:showReader(filepath)
+                            end,
+                        },
+                    },
+                    {
+                        {
+                            text = _("Remove from device"),
+                            callback = function()
+                                UIManager:close(dialog)
+                                UIManager:show(ConfirmBox:new{
+                                    text = T(_("Remove \"%1\" from this device?"), _normalizeName(book.title, _("Untitled"))),
+                                    ok_text = _("Remove"),
+                                    ok_callback = function()
+                                        os.remove(filepath)
+                                        refreshCurrentView()
+                                    end,
+                                })
+                            end,
+                        },
+                    },
+                },
+            }
+            UIManager:show(dialog)
+            return
+        end
+
+        st.downloader.confirmDownload(api, settings, book, function()
+            refreshCurrentView()
+        end)
+    end
+
+    local function onMenuSelect(_, item)
+        if not item then
+            return
+        end
+
+        local ok, err = pcall(function()
+            if item.back then
+                goBack()
+            elseif item.open_currently_reading then
+                pushView({ kind = "currently_reading" })
+            elseif item.open_all_books then
+                pushView({ kind = "all_books" })
+            elseif item.open_collections then
+                pushView({ kind = "collections" })
+            elseif item.open_series then
+                pushView({ kind = "series" })
+            elseif item.collection then
+                pushView({ kind = "collection_books", collection = item.collection })
+            elseif item.series then
+                pushView({ kind = "series_books", series = item.series })
+            elseif item.book then
+                onSelectBook(item.book)
+            end
+        end)
+
+        if not ok then
+            logger.warn("simpleui storyteller: onMenuSelect error:", tostring(err))
+            _showInfo("Error:\n" .. tostring(err))
+        end
+    end
+
+    local PageMenu = Menu:extend{}
+    menu = PageMenu:new{
+        name = "storyteller",
+        title = _("Storyteller"),
+        item_table = {
+            { text = _("Loading…"), dim = true },
+        },
+        height = UI.getContentHeight(),
+        y = UI.getContentTop(),
+        _navbar_height_reduced = true,
+        is_borderless = true,
+        is_popout = false,
+        covers_fullscreen = true,
+        onMenuSelect = onMenuSelect,
+        close_callback = function()
+            if menu then
+                UIManager:close(menu)
+            end
+        end,
+    }
+
+    menu.onCloseWidget = function()
+        M._instance = nil
+    end
+
+    state.stack = { { kind = "root" } }
+    M._instance = menu
+    UIManager:show(menu)
+    refreshData()
+end
+
+return M
