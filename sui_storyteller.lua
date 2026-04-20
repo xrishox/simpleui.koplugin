@@ -200,6 +200,36 @@ function M.show()
         return filtered
     end
 
+    local function getBookCreatedAtValue(book)
+        if not book or not book.createdAt then
+            return 0
+        end
+
+        local parsed = os.time({
+            year = tonumber(string.sub(book.createdAt, 1, 4)),
+            month = tonumber(string.sub(book.createdAt, 6, 7)),
+            day = tonumber(string.sub(book.createdAt, 9, 10)),
+            hour = tonumber(string.sub(book.createdAt, 12, 13)),
+            min = tonumber(string.sub(book.createdAt, 15, 16)),
+            sec = tonumber(string.sub(book.createdAt, 18, 19)),
+        })
+
+        return parsed or 0
+    end
+
+    local function getRecentlyAddedBooks()
+        local books = _copyList(state.books or {})
+        table.sort(books, function(a, b)
+            local created_a = getBookCreatedAtValue(a)
+            local created_b = getBookCreatedAtValue(b)
+            if created_a ~= created_b then
+                return created_a > created_b
+            end
+            return (a.title or ""):lower() < (b.title or ""):lower()
+        end)
+        return books
+    end
+
     local function getSeriesRelation(book, series_uuid)
         for __, relation in ipairs(book.series or {}) do
             if relation.uuid == series_uuid then
@@ -297,6 +327,11 @@ function M.show()
                 open_currently_reading = true,
             },
             {
+                text = _("Recently Added"),
+                mandatory = _countLabel(#(state.books or {})),
+                open_recently_added = true,
+            },
+            {
                 text = _("All books"),
                 mandatory = _countLabel(#(state.books or {})),
                 open_all_books = true,
@@ -334,6 +369,9 @@ function M.show()
                 return (a.title or ""):lower() < (b.title or ""):lower()
             end)
             items = buildBookItems(books)
+        elseif view.kind == "recently_added" then
+            title = _("Recently Added")
+            items = buildBookItems(getRecentlyAddedBooks())
         elseif view.kind == "currently_reading" then
             title = _("Currently Reading")
             items = buildBookItems(getCurrentlyReadingBooks())
@@ -469,6 +507,8 @@ function M.show()
                 goBack()
             elseif item.open_currently_reading then
                 pushView({ kind = "currently_reading" })
+            elseif item.open_recently_added then
+                pushView({ kind = "recently_added" })
             elseif item.open_all_books then
                 pushView({ kind = "all_books" })
             elseif item.open_collections then
