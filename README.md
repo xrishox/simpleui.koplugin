@@ -1,5 +1,7 @@
 # SimpleUI for KOReader
 
+This repository is a fork of the upstream [SimpleUI](https://github.com/doctorhetfield-cmd/simpleui.koplugin) project, maintained specifically to add support for [Storyteller](https://github.com/xrishox/storyteller.koplugin). If you want to use the Storyteller integration shown here, this plugin is intended to be used alongside `storyteller.koplugin`: install both plugins, link the Storyteller plugin to your server, and then use this SimpleUI fork to access Storyteller from the bottom bar and shared library UI.
+
 A clean, distraction-free UI plugin for KOReader that transforms your reading experience. SimpleUI adds a **dedicated Home Screen**, a customisable bottom navigation bar, a top status bar, and a reworked library title bar, giving you instant access to your library, history, collections, and reading stats without navigating through nested menus.
 
 <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; max-width: 1000px; justify-content: center;">
