@@ -1,8 +1,4 @@
-local DataStorage = require("datastorage")
-local Device = require("device")
 local UIManager = require("ui/uimanager")
-local ButtonDialog = require("ui/widget/buttondialog")
-local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
 local Menu = require("ui/widget/menu")
 local NetworkMgr = require("ui/network/manager")
@@ -11,9 +7,6 @@ local _ = require("gettext")
 local logger = require("logger")
 
 local UI = require("sui_core")
-
-local Screen = Device.screen
-local lfs = require("libs/libkoreader-lfs")
 
 local M = {}
 M._instance = nil
@@ -27,7 +20,6 @@ local function _loadST()
     local mods = {
         api = "st_api",
         settings = "st_settings",
-        browser = "st_browser",
         downloader = "st_downloader",
     }
     for key, name in pairs(mods) do
@@ -91,22 +83,8 @@ local function _countLabel(count)
     return T(_("%1 books"), count or 0)
 end
 
-local function _isDownloaded(filepath)
-    return lfs.attributes(filepath, "mode") == "file"
-end
-
-local function _getBookPath(st, settings, book)
-    local format_name = st.downloader.getAvailableFormat(
-        book,
-        settings:getPreferredFormat()
-    ) or settings:getPreferredFormat()
-    local dir = st.downloader.getDownloadDir(settings)
-    local filename = st.downloader.buildFilename(book, format_name)
-    return dir .. "/" .. filename
-end
-
 local function _getDownloadedBadge(st, settings, book)
-    if _isDownloaded(_getBookPath(st, settings, book)) then
+    if st.downloader.getExistingLocalPath(settings, book) then
         return " [" .. _("Downloaded") .. "]"
     end
     return ""
@@ -454,45 +432,7 @@ function M.show()
     end
 
     local function onSelectBook(book)
-        local filepath = _getBookPath(st, settings, book)
-        if _isDownloaded(filepath) then
-            local dialog
-            dialog = ButtonDialog:new{
-                title = _normalizeName(book.title, _("Untitled")),
-                buttons = {
-                    {
-                        {
-                            text = _("Read"),
-                            callback = function()
-                                UIManager:close(dialog)
-                                local ReaderUI = require("apps/reader/readerui")
-                                ReaderUI:showReader(filepath)
-                            end,
-                        },
-                    },
-                    {
-                        {
-                            text = _("Remove from device"),
-                            callback = function()
-                                UIManager:close(dialog)
-                                UIManager:show(ConfirmBox:new{
-                                    text = T(_("Remove \"%1\" from this device?"), _normalizeName(book.title, _("Untitled"))),
-                                    ok_text = _("Remove"),
-                                    ok_callback = function()
-                                        os.remove(filepath)
-                                        refreshCurrentView()
-                                    end,
-                                })
-                            end,
-                        },
-                    },
-                },
-            }
-            UIManager:show(dialog)
-            return
-        end
-
-        st.downloader.confirmDownload(api, settings, book, function()
+        st.downloader.handleBookSelection(api, settings, book, function()
             refreshCurrentView()
         end)
     end
