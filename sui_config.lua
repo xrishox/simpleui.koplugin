@@ -110,7 +110,7 @@ M.ICON = {
 M.CUSTOM_ICON            = M.ICON.custom
 M.CUSTOM_PLUGIN_ICON     = M.ICON.plugin
 M.CUSTOM_DISPATCHER_ICON = M.ICON.ko_settings
-M.DEFAULT_NUM_TABS       = 4
+M.DEFAULT_NUM_TABS       = 6
 M.MAX_TABS               = 6        -- standard mode limit
 M.MAX_TABS_NAVPAGER      = 4        -- navpager mode limit
 M.MAX_LABEL_LEN          = 20
@@ -118,7 +118,7 @@ M.MAX_CUSTOM_QA          = 24
 -- When the navpager is enabled the bar always shows exactly this many centre tabs.
 M.NAVPAGER_CENTER_TABS   = 4
 
-M.DEFAULT_TABS = { "home", "collections", "history", "continue", "favorites" }
+M.DEFAULT_TABS = { "home", "storyteller", "homescreen", "history", "continue", "power" }
 
 -- Fallback tab IDs used when a duplicate 'home' is detected.
 M.NON_HOME_DEFAULTS = {}
@@ -628,7 +628,7 @@ function M.applyFirstRunDefaults()
         G_reader_settings:saveSetting("navbar_mode",           "both")
         G_reader_settings:saveSetting("navbar_bar_size",       "default")
         G_reader_settings:saveSetting("navbar_tabs",
-            { "home", "homescreen", "history", "continue", "power" })
+            { "home", "storyteller", "homescreen", "history", "continue", "power" })
 
         -- Top bar: clock left, battery + wifi right; rest hidden
         M.saveTopbarConfig({
