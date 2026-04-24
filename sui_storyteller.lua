@@ -19,8 +19,11 @@ local function _loadST()
     local st = {}
     local mods = {
         api = "st_api",
-        settings = "st_settings",
+        config = "st_config",
         downloader = "st_downloader",
+        http = "st_http",
+        log = "st_log",
+        models = "st_models",
     }
     for key, name in pairs(mods) do
         local ok, mod = pcall(require, name)
@@ -46,6 +49,36 @@ local function _liveSTPlugin()
         end
     end
     return nil
+end
+
+local function _storytellerContext(st)
+    local st_plugin = _liveSTPlugin()
+    if st_plugin and st_plugin.config and st_plugin.api and st_plugin.downloader then
+        return {
+            plugin = st_plugin,
+            config = st_plugin.config,
+            api = st_plugin.api,
+            downloader = st_plugin.downloader,
+            models = st.models,
+        }
+    end
+
+    local config = st.config:open()
+    st.log:setConfig(config)
+    local http = st.http:new(config, st.log)
+    local api = st.api:new(http)
+    local plugin_stub = {
+        config = config,
+        api = api,
+        log = st.log,
+    }
+    return {
+        plugin = plugin_stub,
+        config = config,
+        api = api,
+        downloader = st.downloader:new(plugin_stub),
+        models = st.models,
+    }
 end
 
 local function _copyList(list)
@@ -83,8 +116,14 @@ local function _countLabel(count)
     return T(_("%1 books"), count or 0)
 end
 
-local function _getDownloadedBadge(st, settings, book)
-    if st.downloader.getExistingLocalPath(settings, book) then
+local function _getDownloadedBadge(ctx, book)
+    local preferred = ctx.config:get("preferred_format", "ebook")
+    local format = ctx.models.selectFormat(book, preferred)
+    if not format then
+        return ""
+    end
+    local __, state = ctx.downloader:findExisting(book, format, ctx.downloader:defaultDir())
+    if state == "fresh" then
         return " [" .. _("Downloaded") .. "]"
     end
     return ""
@@ -108,11 +147,10 @@ function M.show()
         return
     end
 
-    local st_plugin = _liveSTPlugin()
-    local settings = (st_plugin and st_plugin.st_settings) or st.settings:new()
-    local api = (st_plugin and st_plugin.api) or st.api:new(settings)
+    local ctx = _storytellerContext(st)
+    ctx.config:repairAuthState()
 
-    if not settings:isLoggedIn() then
+    if not ctx.config:isLoggedIn() then
         _showInfo(_("Link your Storyteller account first (Tools -> Storyteller)."))
         return
     end
@@ -249,7 +287,7 @@ function M.show()
         local items = { buildBackItem() }
         for __, book in ipairs(books or {}) do
             table.insert(items, {
-                text = _normalizeName(book.title, _("Untitled")) .. _getDownloadedBadge(st, settings, book),
+                text = _normalizeName(book.title, _("Untitled")) .. _getDownloadedBadge(ctx, book),
                 mandatory = _buildAuthors(book),
                 book = book,
             })
@@ -391,11 +429,11 @@ function M.show()
         state.loaded = false
         renderView()
         NetworkMgr:runWhenOnline(function()
-            local books_ok, books = api:listBooks()
-            local collections_ok, collections = api:listCollections()
-            local series_ok, series = api:listSeries()
+            local books_result = ctx.api:listBooks()
+            local collections_result = ctx.api:listCollections()
+            local series_result = ctx.api:listSeries()
 
-            if not books_ok or not collections_ok or not series_ok then
+            if not books_result.ok or not collections_result.ok or not series_result.ok then
                 logger.warn("simpleui storyteller: failed to load library data")
                 _showInfo(_("Failed to load Storyteller library data."))
                 state.loaded = true
@@ -407,15 +445,15 @@ function M.show()
             end
 
             local downloadable = {}
-            for __, book in ipairs(books or {}) do
-                if book.uuid and (book.readaloud or book.ebook) then
+            for __, book in ipairs(books_result.data or {}) do
+                if type(book) == "table" and book.uuid and ctx.models.hasDownloadableFormat(book) then
                     table.insert(downloadable, book)
                 end
             end
 
             state.books = downloadable
-            state.collections = collections or {}
-            state.series = series or {}
+            state.collections = collections_result.data or {}
+            state.series = series_result.data or {}
             state.loaded = true
             if #state.stack == 0 then
                 state.stack = { { kind = "root" } }
@@ -432,9 +470,8 @@ function M.show()
     end
 
     local function onSelectBook(book)
-        st.downloader.handleBookSelection(api, settings, book, function()
-            refreshCurrentView()
-        end)
+        ctx.downloader:selectAndOpen(book)
+        refreshCurrentView()
     end
 
     local function onMenuSelect(_, item)
