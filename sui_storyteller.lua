@@ -428,12 +428,20 @@ function M.show()
     local function refreshData()
         state.loaded = false
         renderView()
-        NetworkMgr:runWhenOnline(function()
+        local server_url = ctx.config:get("server_url")
+        local user_id = ctx.config:get("user_id")
+        NetworkMgr:runWhenConnected(function()
+            if ctx.config:get("server_url") ~= server_url
+                    or ctx.config:get("user_id") ~= user_id then
+                state.loaded = true
+                renderView()
+                return
+            end
             local books_result = ctx.api:listBooks()
             local collections_result = ctx.api:listCollections()
             local series_result = ctx.api:listSeries()
 
-            if not books_result.ok or not collections_result.ok or not series_result.ok then
+            if not books_result.ok then
                 logger.warn("simpleui storyteller: failed to load library data")
                 _showInfo(_("Failed to load Storyteller library data."))
                 state.loaded = true
@@ -442,6 +450,9 @@ function M.show()
                 state.series = state.series or {}
                 renderView()
                 return
+            end
+            if not collections_result.ok or not series_result.ok then
+                logger.warn("simpleui storyteller: partially loaded library data")
             end
 
             local downloadable = {}
@@ -452,8 +463,8 @@ function M.show()
             end
 
             state.books = downloadable
-            state.collections = collections_result.data or {}
-            state.series = series_result.data or {}
+            state.collections = collections_result.ok and collections_result.data or {}
+            state.series = series_result.ok and series_result.data or {}
             state.loaded = true
             if #state.stack == 0 then
                 state.stack = { { kind = "root" } }
