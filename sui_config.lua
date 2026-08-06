@@ -73,6 +73,7 @@ M.ICON = {
     custom_dir     = _P .. "custom",
     group          = _P .. "group.svg",
     plugin         = _P .. "plugin.svg",
+    storyteller    = _P .. "storyteller.svg",
     author         = _P .. "author.svg",
     series         = _P .. "series.svg",
     tags           = _P .. "tags.svg",
@@ -97,14 +98,14 @@ M.CUSTOM_GROUP_ICON      = M.ICON.group
 -- 2. Core Constants & Action Registry
 -- ===========================================================================
 
-M.DEFAULT_NUM_TABS       = 5
+M.DEFAULT_NUM_TABS       = 6
 M.MAX_TABS               = 6
 M.MAX_TABS_NAVPAGER      = 4
 M.MAX_LABEL_LEN          = 20
 M.MAX_CUSTOM_QA          = 24
 M.NAVPAGER_CENTER_TABS   = 4
 
-M.DEFAULT_TABS = { "home", "sui_settings", "homescreen", "history", "power" }
+M.DEFAULT_TABS = { "home", "storyteller", "sui_settings", "homescreen", "history", "power" }
 
 M.NON_HOME_DEFAULTS = {}
 for _i, id in ipairs(M.DEFAULT_TABS) do
@@ -121,6 +122,7 @@ M.ALL_ACTIONS = {
     { id = "continue",         label = _("Continue"),         icon = M.ICON.continue_   },
     { id = "random_document",  label = _("Random"),           icon = M.ICON.random      },
     { id = "favorites",        label = _("Favorites"),        icon = M.ICON.ko_star     },
+    { id = "storyteller",      label = _("Storyteller"),      icon = M.ICON.storyteller },
     { id = "bookmark_browser", label = _("Bookmarks"),        icon = M.ICON.ko_bookmark },
     { id = "wifi_toggle",      label = _("Wi-Fi"),            icon = M.ICON.ko_wifi_on  },
     { id = "frontlight",       label = _("Brightness"),       icon = M.ICON.frontlight  },
@@ -1359,7 +1361,7 @@ function M.applyFirstRunDefaults()
     def("simpleui_bar_enabled",  true)
     def("simpleui_topbar_enabled", true)
     def("simpleui_bar_mode",     "both")
-    def("simpleui_bar_tabs",     { "home", "sui_settings", "homescreen", "history", "power" })
+    def("simpleui_bar_tabs",     { "home", "storyteller", "sui_settings", "homescreen", "history", "power" })
     if SUISettings:get("simpleui_topbar_config") == nil then
         M.saveTopbarConfig({ side = { clock = "left", battery = "right", wifi = "right" }, order_left = { "clock" }, order_right = { "wifi", "battery" } })
     end

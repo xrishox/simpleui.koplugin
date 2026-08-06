@@ -1246,6 +1246,7 @@ local _PLUGIN_MODULES = {
     "sui_patches", "sui_menu", "sui_titlebar", "sui_quickactions",
     "sui_homescreen", "sui_foldercovers", "sui_browsemeta", "sui_updater",
     "sui_store", "sui_presets", "sui_style",
+    "sui_storyteller",
     "sui_settings_window",
     "sui_quicksettings_bar",
     "desktop_modules/moduleregistry",

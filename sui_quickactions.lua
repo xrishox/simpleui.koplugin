@@ -749,6 +749,21 @@ local function _registerBuiltins()
                 else su(_("Favorites not available.")) end
             end,
         },
+        {
+            id    = "storyteller",
+            label = _("Storyteller"),
+            icon  = Config.ICON.storyteller,
+            is_in_place = false,
+            execute = function(ctx)
+                local su = ctx.show_unavailable or _unavailToast
+                local ok_st, ST = pcall(require, "sui_storyteller")
+                if ok_st and ST and type(ST.show) == "function" then
+                    ST.show()
+                else
+                    su(_("Storyteller page not available."))
+                end
+            end,
+        },
         -- ── Overlay / dialog actions ────────────────────────────────────────
         {
             id    = "bookmark_browser",

@@ -1791,7 +1791,7 @@ function M.patchUIManagerShow(plugin)
 
     -- Widgets that receive navbar injection by name (in addition to those
     -- already sized to the content area via _navbar_height_reduced).
-    local INJECT_NAMES = { collections = true, history = true, coll_list = true, homescreen = true }
+    local INJECT_NAMES = { collections = true, history = true, coll_list = true, homescreen = true, storyteller = true }
 
     -- Widgets that receive wallpaper injection. Intentionally narrower than
     -- INJECT_NAMES: SortWidget, PathChooser and other utility overlays that
