@@ -1236,6 +1236,7 @@ end
 -- without restarting KOReader) always loads fresh code.
 -- ---------------------------------------------------------------------------
 local _PLUGIN_MODULES = {
+    "screens/sui_storyteller",
     "infra/sui_i18n", "infra/sui_config", "infra/sui_core", "screens/sui_bottombar", "screens/sui_topbar",
     "infra/sui_patches", "screens/sui_menu", "screens/sui_titlebar", "features/sui_quickactions",
     "screens/sui_homescreen", "features/library/sui_foldercovers", "features/library/sui_library_browse", "infra/sui_updater",

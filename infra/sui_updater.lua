@@ -24,7 +24,10 @@ local UI          = require("infra/sui_core")
 -- ---------------------------------------------------------------------------
 -- Configuration
 -- ---------------------------------------------------------------------------
-local GITHUB_OWNER = "doctorhetfield-cmd"
+-- Fork note: point the updater at the Storyteller fork, not upstream —
+-- updating from upstream releases would silently remove the Storyteller
+-- integration.
+local GITHUB_OWNER = "xrishox"
 local GITHUB_REPO  = "simpleui.koplugin"
 local ASSET_NAME   = "simpleui.koplugin.zip"
 
