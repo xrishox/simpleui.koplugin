@@ -115,6 +115,42 @@ local function _buildAuthors(book)
     return table.concat(names, ", ")
 end
 
+-- Display variant of _buildAuthors for list rows. KOReader's MenuItem gives
+-- the right-side "mandatory" text width precedence over the title, so a long
+-- author list would crush the title down to nothing. Keep it short: first
+-- author only (+N for co-authors/narrators), hard-capped in characters.
+-- Search still uses the full _buildAuthors string.
+local AUTHOR_DISPLAY_MAX_CHARS = 24
+
+local function _ellipsize(text, max_chars)
+    local chars = {}
+    for ch in text:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        chars[#chars + 1] = ch
+        if #chars > max_chars then break end
+    end
+    if #chars <= max_chars then
+        return text
+    end
+    return table.concat(chars, "", 1, max_chars - 1) .. "…"
+end
+
+local function _buildAuthorsDisplay(book)
+    local names = {}
+    for __, author in ipairs(book.authors or {}) do
+        if author.name and author.name ~= "" then
+            table.insert(names, author.name)
+        end
+    end
+    if #names == 0 then
+        return nil
+    end
+    local label = _ellipsize(names[1], AUTHOR_DISPLAY_MAX_CHARS)
+    if #names > 1 then
+        label = label .. " +" .. tostring(#names - 1)
+    end
+    return label
+end
+
 local function _countLabel(count)
     if count == 1 then
         return _("1 book")
@@ -300,7 +336,7 @@ function M.show()
     local function buildBookItem(book)
         return {
             text = _normalizeName(book.title, _("Untitled")) .. _getDownloadedBadge(ctx, book),
-            mandatory = _buildAuthors(book),
+            mandatory = _buildAuthorsDisplay(book),
             book = book,
         }
     end
