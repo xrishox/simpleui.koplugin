@@ -158,6 +158,13 @@ local function _countLabel(count)
     return T(_("%1 books"), count or 0)
 end
 
+local function _authorsCountLabel(count)
+    if count == 1 then
+        return _("1 author")
+    end
+    return T(_("%1 authors"), count or 0)
+end
+
 local function _getDownloadedBadge(ctx, book)
     local preferred = ctx.config:get("preferred_format", "ebook")
     local format = ctx.models.selectFormat(book, preferred)
@@ -241,6 +248,50 @@ function M.show()
                     table.insert(filtered, book)
                     break
                 end
+            end
+        end
+        return filtered
+    end
+
+    -- Author browsing groups by primary author only (first listed author).
+    -- The Storyteller data model has no role metadata, so co-authors and
+    -- narrators are indistinguishable; grouping by all of them would list
+    -- the same book under several shelves. Search still matches any author.
+    local function getPrimaryAuthorName(book)
+        for __, author in ipairs(book.authors or {}) do
+            if author.name and author.name ~= "" then
+                return author.name
+            end
+        end
+        return nil
+    end
+
+    local function getAuthorEntries()
+        local counts = {}
+        local names = {}
+        for __, book in ipairs(state.books or {}) do
+            local name = getPrimaryAuthorName(book)
+            if name then
+                if not counts[name] then
+                    counts[name] = 0
+                    table.insert(names, name)
+                end
+                counts[name] = counts[name] + 1
+            end
+        end
+        table.sort(names, function(a, b) return a:lower() < b:lower() end)
+        local entries = {}
+        for __, name in ipairs(names) do
+            table.insert(entries, { name = name, count = counts[name] })
+        end
+        return entries
+    end
+
+    local function getBooksForAuthor(author_name)
+        local filtered = {}
+        for __, book in ipairs(state.books or {}) do
+            if getPrimaryAuthorName(book) == author_name then
+                table.insert(filtered, book)
             end
         end
         return filtered
@@ -389,6 +440,22 @@ function M.show()
         return items
     end
 
+    local function buildAuthorItems()
+        local items = { buildBackItem() }
+        local entries = getAuthorEntries()
+        for __, entry in ipairs(entries) do
+            table.insert(items, {
+                text = entry.name,
+                mandatory = _countLabel(entry.count),
+                author_name = entry.name,
+            })
+        end
+        if #entries == 0 then
+            table.insert(items, { text = _("No authors found."), dim = true })
+        end
+        return items
+    end
+
     local function getSearchText(book)
         state.search_index = state.search_index or {}
         local key = book.uuid or tostring(book)
@@ -463,6 +530,11 @@ function M.show()
                 mandatory = _countLabel(#(state.series or {})),
                 open_series = true,
             },
+            {
+                text = _("Authors"),
+                mandatory = _authorsCountLabel(#getAuthorEntries()),
+                open_authors = true,
+            },
         }
     end
 
@@ -508,6 +580,16 @@ function M.show()
         elseif view.kind == "series_books" then
             title = _normalizeName(view.series and view.series.name, _("Series"))
             local books = sortSeriesBooks(view.series.uuid, getBooksForSeries(view.series.uuid))
+            items = buildBookItems(books)
+        elseif view.kind == "authors" then
+            title = _("Authors")
+            items = buildAuthorItems()
+        elseif view.kind == "author_books" then
+            title = _normalizeName(view.author_name, _("Author"))
+            local books = getBooksForAuthor(view.author_name)
+            table.sort(books, function(a, b)
+                return (a.title or ""):lower() < (b.title or ""):lower()
+            end)
             items = buildBookItems(books)
         elseif view.kind == "search" then
             title = _("Search")
@@ -700,6 +782,10 @@ function M.show()
                 pushView({ kind = "collections" })
             elseif item.open_series then
                 pushView({ kind = "series" })
+            elseif item.open_authors then
+                pushView({ kind = "authors" })
+            elseif item.author_name then
+                pushView({ kind = "author_books", author_name = item.author_name })
             elseif item.collection then
                 pushView({ kind = "collection_books", collection = item.collection })
             elseif item.series then
