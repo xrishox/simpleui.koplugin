@@ -1403,11 +1403,24 @@ end
 -- sui_patches.lua) is its successor, now that this loop leaves a parked
 -- screen's _instance alone for it to find.
 
+function SimpleUIPlugin:_closeStorytellerScreen()
+    -- The Storyteller menu is a separate window, outside ScreenEngine's registry.
+    -- Do not leave it behind when its FileManager/ReaderUI is destroyed: an
+    -- orphaned menu keeps UIManager alive after the native exit handler returns.
+    local storyteller = package.loaded["screens/sui_storyteller"]
+    local menu = storyteller and storyteller._instance
+    if menu then
+        menu._navbar_closing_intentionally = true
+        UIManager:close(menu) -- also cancels library requests and closes search
+    end
+end
+
 -- Mark exit early so HS reopen paths bail before _exit_code is set (that
 -- only happens once the window stack is empty). Force-close soft-parked
 -- screens so they cannot keep the stack non-empty and block quit.
 function SimpleUIPlugin:onExit()
     UIManager._simpleui_exiting = true
+    self:_closeStorytellerScreen()
     local ScreenEngine = package.loaded["engines/sui_screen_engine"]
     if ScreenEngine then
         for _, id in ipairs(ScreenEngine.liveScreenIds()) do
@@ -1428,6 +1441,7 @@ function SimpleUIPlugin:onRestart()
 end
 
 function SimpleUIPlugin:onCloseWidget()
+    self:_closeStorytellerScreen()
     local ScreenEngine = package.loaded["engines/sui_screen_engine"]
     if not ScreenEngine then return end
     local exiting = UIManager._simpleui_exiting or UIManager._exit_code ~= nil
