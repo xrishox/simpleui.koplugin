@@ -79,7 +79,8 @@ local function _currentVersion()
 end
 
 -- Returns true if version `a` is strictly greater than `b`.
--- Supports "v1.2.3", "1.2.3", "1.2.3-beta1" (suffixes are ignored).
+-- Compare the upstream version first, then this fork's Storyteller revision.
+-- An unnumbered release has revision 0; unrelated suffixes remain ignored.
 local function _versionGt(a, b)
     local function parts(v)
         v = (v or ""):match("^v?(.-)[-+]") or (v or ""):match("^v?(.+)$") or ""
@@ -93,7 +94,10 @@ local function _versionGt(a, b)
         if pa[i] > pb[i] then return true end
         if pa[i] < pb[i] then return false end
     end
-    return false
+    local function revision(v)
+        return tonumber((v or ""):match("%-storyteller%.(%d+)$")) or 0
+    end
+    return revision(a) > revision(b)
 end
 
 local function _isValidAssetUrl(url)

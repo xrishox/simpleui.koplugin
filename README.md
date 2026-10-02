@@ -2,6 +2,8 @@
 
 This repository is a fork of the upstream [SimpleUI](https://github.com/doctorhetfield-cmd/simpleui.koplugin) project, maintained specifically to add support for [Storyteller](https://gitlab.com/storyteller-platform/storyteller), a self-hosted book reading service. If you want to use the Storyteller integration shown here, this plugin is intended to be used alongside [Storyteller Koreader Plugin](https://github.com/xrishox/Storyteller-Koreader-Plugin): install both plugins, link Storyteller Koreader Plugin to your Storyteller server, and then use this SimpleUI fork to access Storyteller from the bottom bar and shared library UI.
 
+Fork releases use `v<upstream-version>-storyteller.<revision>`, for example `v2.7.1-storyteller.1`. The revision increments for each fork release on that upstream version and resets to `1` when the upstream version changes. `_meta.lua` carries the same version without the leading `v`, and the updater checks releases from this fork. Release notes identify the exact upstream commit used, since a build can include changes made after the upstream release tag.
+
 A clean, distraction-free UI plugin for KOReader that transforms your reading experience. SimpleUI adds a **dedicated Home Screen**, a customisable Navigation Bar, a top status bar, and a reworked library title bar, giving you instant access to your library, history, collections, and reading stats without navigating through nested menus.
 
 ## Table of Contents
