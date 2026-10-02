@@ -4,6 +4,8 @@ This repository is a fork of the upstream [SimpleUI](https://github.com/doctorhe
 
 Fork releases use `v<upstream-version>-storyteller.<revision>`, for example `v2.7.1-storyteller.1`. The revision increments for each fork release on that upstream version and resets to `1` when the upstream version changes. `_meta.lua` carries the same version without the leading `v`, and the updater checks releases from this fork. Release notes identify the exact upstream commit used, since a build can include changes made after the upstream release tag.
 
+The `v2.7.1-storyteller.2` release includes upstream through commit `3444cc9c03756df1b4c7cb1847d56f517116f842` and the Storyteller background-loading adapter. Pair it with [Storyteller companion 1.1.1](https://github.com/xrishox/Storyteller-Koreader-Plugin/releases/tag/1.1.1); no separate patch is needed. Older companions remain supported through the synchronous fallback.
+
 A clean, distraction-free UI plugin for KOReader that transforms your reading experience. SimpleUI adds a **dedicated Home Screen**, a customisable Navigation Bar, a top status bar, and a reworked library title bar, giving you instant access to your library, history, collections, and reading stats without navigating through nested menus.
 
 ## Table of Contents
@@ -50,7 +52,7 @@ A clean, distraction-free UI plugin for KOReader that transforms your reading ex
 
 > **Install from the latest release, not from _Code → Download ZIP_.** The repository download extracts to a folder such as `simpleui.koplugin-main`, which KOReader does not recognise as this plugin. The release ZIP already contains a correctly named `simpleui.koplugin` folder.
 
-1. Open the [latest release](https://github.com/doctorhetfield-cmd/simpleui.koplugin/releases/latest) page
+1. Open the [latest release](https://github.com/xrishox/simpleui.koplugin/releases/latest) page
 2. Scroll down to **Assets** and click **`simpleui.koplugin.zip`** to download it (ignore *Source code (zip)* and *Source code (tar.gz)*)
 3. Extract the ZIP on your computer. You should get a folder named exactly `simpleui.koplugin` with `main.lua` and `_meta.lua` directly inside. Some extraction tools add a wrapper folder with the same name (`simpleui.koplugin/simpleui.koplugin`); if that happens, copy the inner folder, the one that holds `main.lua`
 4. Connect your device to your computer and copy the `simpleui.koplugin` folder to the `plugins/` directory of your KOReader installation:
